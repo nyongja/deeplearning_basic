@@ -1,11 +1,12 @@
 from re import A
 import sys
+from matplotlib.pyplot import step
 sys.path.append('/Users/nyongja/Library/Mobile Documents/com~apple~CloudDocs/Class/대학원/21-2/deeplearning_basic')
 import numpy as np
 import pickle
 import dataset.mnist as mn
-from common.functions import sigmoid, softmax
-
+from common.functions import sigmoid, softmax, relu, step_function
+import matplotlib.pyplot as plt
 
 def get_data() :
     # (학습 이미지, 학습 레이블), (시험 이미지, 시험 레이블) 형식으로 MNIST 데이터 가져오기
@@ -28,14 +29,26 @@ def init_network() :
     return network
 
 
-def predict(network, x) :
+def predict(network, x, f1, f2) :
     W1, W2, W3 = network['W1'], network['W2'], network['W3']
     b1, b2, b3 = network['b1'], network['b2'], network['b3']
 
     a1 = np.dot(x, W1) + b1
-    z1 = sigmoid(a1)
+    if f1 == "step" :
+        z1 = step_function(a1)
+    if f1 == "sig" :
+        z1 = sigmoid(a1)
+    else :
+        z1 = relu(a1)
+
     a2 = np.dot(z1, W2) + b2
-    z2 = sigmoid(a2)
+    if f2 == "step" :
+        z2 = step_function(a2)
+    elif f2 == "sig" : 
+        z2 = sigmoid(a2)
+    else :
+        z2 = relu(a2)
+
     a3 = np.dot(z2, W3) + b3
     y = softmax(a3)
 
@@ -45,12 +58,43 @@ x, t = get_data()
 network = init_network() # 네트워크 생성
 
 batch_size = 100
-accuracy_cnt = 0
+accuracy_step_step_cnt = 0
+accuracy_sig_sig_cnt = 0
+accuracy_relu_relu_cnt = 0
+accuracy_sig_relu_cnt = 0
+accuracy_relu_sig_cnt = 0
+
 
 for i in range(0, len(x), batch_size) :
     x_batch = x[i:i+batch_size]
-    y_batch = predict(network, x_batch)
-    p = np.argmax(y_batch, axis = 1) # 확률이 가장 높은 인덱스를 얻음
-    accuracy_cnt += np.sum(p == t[i:i+batch_size])
+    y_batch1 = predict(network, x_batch, 'step', 'step')
+    y_batch2 = predict(network, x_batch, 'sig', 'sig')
+    y_batch3 = predict(network, x_batch, 'relu', 'relu')
+    y_batch4 = predict(network, x_batch, 'sig', 'relu')
+    y_batch5 = predict(network, x_batch, 'relu', 'sig')
+    
+    p1 = np.argmax(y_batch1, axis = 1) # 확률이 가장 높은 인덱스를 얻음
+    p2 = np.argmax(y_batch2, axis = 1)
+    p3 = np.argmax(y_batch3, axis = 1)
+    p4 = np.argmax(y_batch4, axis = 1)
+    p5 = np.argmax(y_batch5, axis = 1)
 
-print("Accuracy : " + str(float(accuracy_cnt) / len(x))) 
+    accuracy_step_step_cnt += np.sum(p1 == t[i:i+batch_size])
+    accuracy_sig_sig_cnt += np.sum(p2 == t[i:i+batch_size])
+    accuracy_relu_relu_cnt += np.sum(p3 == t[i:i+batch_size])
+    accuracy_sig_relu_cnt += np.sum(p4 == t[i:i+batch_size])
+    accuracy_relu_sig_cnt += np.sum(p5 == t[i:i+batch_size])
+
+print("Accuracy only step : " + str(float(accuracy_step_step_cnt) / len(x))) 
+print("Accuracy only sigmoiod : " + str(float(accuracy_sig_sig_cnt) / len(x))) 
+print("Accuracy only relu : " + str(float(accuracy_relu_relu_cnt) / len(x))) 
+print("Accuracy sig-relu : " + str(float(accuracy_sig_relu_cnt) / len(x))) 
+print("Accuracy relu-sig : " + str(float(accuracy_relu_sig_cnt) / len(x))) 
+
+n = np.arange(5)
+values = [float(accuracy_step_step_cnt)/len(x), float(accuracy_sig_sig_cnt)/len(x), float(accuracy_relu_relu_cnt)/len(x), 
+            float(accuracy_sig_relu_cnt) / len(x), float(accuracy_relu_sig_cnt) / len(x)]
+plt.bar(n, values)
+plt.xticks(n, ['step-step', 'sig-sig', 'relu-relu', 'sig-relu', 'relu-sig'])
+
+plt.show()
